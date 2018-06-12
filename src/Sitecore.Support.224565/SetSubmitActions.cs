@@ -15,7 +15,7 @@ using System;
 using System.Collections.Specialized;
 using System.Web;
 
-namespace Sitecore.Forms.Core.Commands
+namespace Sitecore.Support.Forms.Core.Commands
 {
   [Serializable]
   public class SetSubmitActions : Command
@@ -42,7 +42,12 @@ namespace Sitecore.Forms.Core.Commands
     {
       Assert.ArgumentNotNull(args.Parameters["id"], "id");
       Assert.ArgumentNotNull(args.Parameters["db"], "db");
-      Item item = Database.GetItem(new ItemUri(ID.Parse(args.Parameters["id"]), Language.Current, Sitecore.Data.Version.Latest, args.Parameters["db"]));
+      if (!Language.TryParse(args.Parameters["la"], out Language language))
+      {
+        language = Language.Current;
+      }
+      //Item item = Database.GetItem(new ItemUri(ID.Parse(args.Parameters["id"]), Language.Current, Sitecore.Data.Version.Latest, args.Parameters["db"]));
+      Item item = Database.GetItem(new ItemUri(ID.Parse(args.Parameters["id"]), language, Sitecore.Data.Version.Latest, args.Parameters["db"]));
       if (SheerResponse.CheckModified() && item != null)
       {
         if (args.IsPostBack)
@@ -55,7 +60,9 @@ namespace Sitecore.Forms.Core.Commands
             ListDefinition listDefinition = ListDefinition.Parse((args.Result == "-") ? string.Empty : args.Result);
             if (args.Parameters["mode"] == "save")
             {
-              item.Fields[Sitecore.Form.Core.Configuration.FieldIDs.SaveActionsID].Value = listDefinition.ToXml();
+              //item.Fields[Sitecore.Form.Core.Configuration.FieldIDs.SaveActionsID].Value = listDefinition.ToXml();
+              item.Fields[Sitecore.Form.Core.Configuration.FieldIDs.SaveActionsID].Value = Sitecore.Form.Core.Utility.ActionUtil.GetGlobalSaveActions(item.Fields[Sitecore.Form.Core.Configuration.FieldIDs.SaveActionsID].Value, listDefinition.ToXml());
+              item.Fields[Sitecore.Form.Core.Configuration.FieldIDs.LocalizedSaveActionsID].Value = Sitecore.Form.Core.Utility.ActionUtil.GetLocalizedSaveActions(listDefinition.ToXml());
             }
             else
             {
@@ -69,7 +76,8 @@ namespace Sitecore.Forms.Core.Commands
           string text = ID.NewID.ToString();
           UrlString urlString = new UrlString(UIUtil.GetUri("control:SubmitCommands.Editor"));
           FormItem formItem = new FormItem(item);
-          ListDefinition value = ListDefinition.Parse((args.Parameters["mode"] == "save") ? formItem.SaveActions : formItem.CheckActions);
+          //ListDefinition value = ListDefinition.Parse((args.Parameters["mode"] == "save") ? formItem.SaveActions : formItem.CheckActions);
+          ListDefinition value = ListDefinition.Parse((args.Parameters["mode"] == "save") ? Sitecore.Form.Core.Utility.ActionUtil.OverrideParameters(formItem.SaveActions, formItem.LocalizedSaveActions) : formItem.CheckActions);
           HttpContext.Current.Session.Add(text, value);
           urlString.Append("definition", text);
           urlString.Add("id", args.Parameters["id"]);
